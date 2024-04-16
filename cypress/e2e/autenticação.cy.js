@@ -65,6 +65,10 @@ describe("Autenticação e Login", () => {
     });
   });
 
+  it('Não deve ser possível autenticar usuário inativo', () => {
+    //TODO: Escrever teste
+  });
+
   it("Deve remover o usuário da base de dados", () => {
     //Limpar base de usuários desnecessários
     cy.request({
