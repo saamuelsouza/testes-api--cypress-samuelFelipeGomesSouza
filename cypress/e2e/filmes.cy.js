@@ -1,31 +1,14 @@
 /// <reference types= "cypress"/>
 
-describe("Cenários de testes do recurso Users", () => {
-    const { faker } = require("@faker-js/faker");
-    const urlBase = "https://raromdb-3c39614e42d4.herokuapp.com/api";
-
+describe("Cenários de testes do recurso Movies", () => {
   describe("GET - /api/movies - List movies", () => {
     it("Deve consultar a lista de filmes com sucesso sem autenticação", () => {});
+
     it("Deve consultar a lista de filmes com sucesso ordenadas por rating", () => {});
   });
 
   describe("POST - /api/movies - Create a new movie", () => {
-    it("Deve criar um novo filme com sucesso", () => {
-      //podemos usar o it já criado em autenticação?
-      const novoUsuario = {
-        name: "",
-        email: "",
-        password: "teste123",
-      };
-
-      /*cy.request('POST', 'https://raromdb-3c39614e42d4.herokuapp.com/api/users', novoUsuario)
-          .then((response) => {
-            // Verificar o status 201 (sucesso)
-            expect(response.status).to.equal(201);
-            expect(response.body.name).to.equal(novoUsuario.name);
-            expect(response.body.email).to.equal(novoUsuario.email);
-          });*/
-    });
+    it("Deve criar um novo filme com sucesso", () => {});
 
     it("Deve criar um novo filme com sucesso mesmo que com o título repetido", () => {});
 
@@ -94,13 +77,7 @@ describe("Cenários de testes do recurso Users", () => {
   });
 
   describe("DELETE - /api/movies/{id} - Delete movie", () => {
-    it("Deve deletar um movie existente por Id", () => {
-      // podemos usar o trecho de código da autenticação
-      /*cy.request('DELETE', `https://raromdb-3c39614e42d4.herokuapp.com/api/users/${userId}`)
-        .then((response) => {
-          expect(response.status).to.equal(200);
-        });*/
-    });
+    it("Deve deletar um movie existente por Id", () => {});
 
     it("Deve retornar sucesso ao excluir movie já excluído", () => {});
 
@@ -110,19 +87,8 @@ describe("Cenários de testes do recurso Users", () => {
   });
 
   describe("PUT - /api/movies/{id} - Update movie", () => {
-    it("Deve atualizar um movie existente", () => {
-      // Inserir dados atualizados?
-      const atualizarDados = {
-        name: "",
-        email: "blablabla.email@example.com",
-        password: "12345",
-      };
-      /*cy.request('PUT', `https://raromdb-3c39614e42d4.herokuapp.com/api/users/${userId}`, atualizarDados)
-        .then((response) => {
-          expect(response.status).to.equal(200);
-          expect(response.body.name).to.equal(atualizarDados.name);
-          expect(response.body.email).to.equal(atualizarDados.email);
-        });*/
+      it("Deve atualizar um movie existente", () => {});
+      
       it("Deve retornar erro caso o Id de movie não seja numérico", () => {});
 
       it("Deve retornar um erro caso o Id de movie não seja informado", () => {});
@@ -172,4 +138,3 @@ describe("Cenários de testes do recurso Users", () => {
       it("Deve retornar erro caso o campo description tenham mais de 100 caracteres", () => {});
     });
   });
-});

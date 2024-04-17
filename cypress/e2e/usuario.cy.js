@@ -238,7 +238,6 @@ describe("Cenários de testes do recurso Users", () => {
     });
   });
 
-  //Começar a correção aqui
   describe("GET - /api/users - List users", () => {
     it("Deve listar os usuários existentes", () => {
       cy.request({
@@ -684,6 +683,7 @@ describe("Cenários de testes do recurso Users", () => {
       let email = faker.internet.email();
       let password = faker.internet.password({ length: 12 });
 
+      // Criar usuário
       cy.request("POST", `${urlBase}/users`, {
         name: nome,
         email: email,
@@ -703,17 +703,23 @@ describe("Cenários de testes do recurso Users", () => {
         expect(response.body).to.have.property("active");
         expect(typeof response.body.active).to.equal("boolean");
 
-
-        cy.request({
-          method: "PATCH",
-          url: `${urlBase}/users/inactivate`,
-          body: {
-
-          },
-          headers: headers,
+        // Fazer login
+        cy.request("POST", `${urlBase}/auth/login`, {
+          email: email,
+          password: password,
         }).then((response) => {
-          expect(response.status).to.equal(204);
+          expect(response.status).to.equal(200);
+          expect(response.body).to.have.property("accessToken");
 
+          // Inativar usuário
+          cy.request({
+            method: "PATCH",
+            url: `${urlBase}/users/inactivate`,
+            body: {},
+            headers: { authorization: `Bearer ${response.body.accessToken}` },
+          }).then((response) => {
+            expect(response.status).to.equal(204);
+          });
         });
       });
     });
@@ -722,43 +728,277 @@ describe("Cenários de testes do recurso Users", () => {
       cy.request({
         method: "PATCH",
         url: `${urlBase}/users/inactivate`,
-        body: {
-
-        },
-        failOnStatusCode: false
+        body: {},
+        failOnStatusCode: false,
       }).then((response) => {
         expect(response.status).to.equal(401);
-
       });
     });
   });
 
   describe("POST - /api/users/review - Review a movie", () => {
-    it("Deve enviar uma revisão para um filme existente", () => {
+    let filme;
 
+    it("Deve enviar uma revisão para um filme existente", () => {
+      let nomeFilme = `${faker.person.firstName()} ${faker.person.lastName()} parte ${Math.floor(
+        Math.random() * 10
+      )}`;
+
+      cy.request({
+        method: "POST",
+        url: `${urlBase}/movies`,
+        body: {
+          title: nomeFilme,
+          genre: "ação",
+          description: faker.lorem.paragraph(),
+          durationInMinutes: Math.floor(Math.random() * 180),
+          releaseYear: Math.floor(Math.random() * 2024),
+        },
+        headers: headers,
+      }).then((response) => {
+        expect(response.status).to.equal(201);
+      });
+
+      // Buscar o ID do filme recém criado
+      cy.request({
+        method: "GET",
+        url: `${urlBase}/movies/search?title=${nomeFilme}`,
+        headers: headers,
+      }).then((response) => {
+        expect(response.status).to.equal(200);
+        expect(response.body[0]).to.have.property("id");
+        expect(typeof response.body[0].id).to.equal("number");
+
+        filme = response.body[0];
+
+        // Enviar review
+        cy.request({
+          method: "POST",
+          url: `${urlBase}/users/review`,
+          body: {
+            movieId: filme.id,
+            score: 3,
+            reviewText: faker.lorem.paragraph(),
+          },
+          headers: headers,
+        }).then((response) => {
+          expect(response.status).to.equal(201);
+        });
+      });
     });
 
-    it("Deve retornar erro caso o Id do filme seja inexistente", () => {});
+    it("Deve retornar erro caso o Id do filme seja inexistente", () => {
+      cy.request({
+        method: "POST",
+        url: `${urlBase}/users/review`,
+        body: {
+          movieId: new Date().getTime(),
+          score: 3,
+          reviewText: faker.lorem.paragraph(),
+        },
+        headers: headers,
+        failOnStatusCode: false,
+      }).then((response) => {
+        expect(response.body.message).to.equal("Movie not found");
+      });
+    });
 
-    it("Deve retornar erro caso o score não seja informado", () => {});
+    it("Deve retornar erro caso o score não seja informado", () => {
+      cy.request({
+        method: "POST",
+        url: `${urlBase}/users/review`,
+        body: {
+          movieId: new Date().getTime(),
+          score: "%20",
+          reviewText: faker.lorem.paragraph(),
+        },
+        headers: headers,
+        failOnStatusCode: false,
+      }).then((response) => {
+        expect(response.body.message[0]).to.equal(
+          "score must be a number conforming to the specified constraints"
+        );
+      });
+    });
 
-    it("Deve retornar erro caso o score seja menor que 1", () => {});
-    it("Deve retornar mensagem de sucesso caso o score seja igual a 1", () => {});
+    it("Deve retornar erro caso o score seja menor que 1", () => {
+      cy.request({
+        method: "POST",
+        url: `${urlBase}/users/review`,
+        body: {
+          movieId: new Date().getTime(),
+          score: 0,
+          reviewText: faker.lorem.paragraph(),
+        },
+        headers: headers,
+        failOnStatusCode: false,
+      }).then((response) => {
+        expect(response.body.message).to.equal(
+          "Score should be between 1 and 5"
+        );
+      });
+    });
 
-    it("Deve retornar mensagem de sucesso caso o score esteja entre 1 e 5", () => {});
+    it("Deve retornar mensagem de sucesso caso o score seja igual a 1", () => {
+      cy.request({
+        method: "POST",
+        url: `${urlBase}/users/review`,
+        body: {
+          movieId: filme.id,
+          score: 1,
+          reviewText: faker.lorem.paragraph(),
+        },
+        headers: headers,
+      }).then((response) => {
+        expect(response.status).to.equal(201);
+      });
+    });
 
-    it("Deve retornar mensagem de sucesso caso o score seja igual a 5", () => {});
+    it("Deve retornar mensagem de sucesso caso o score esteja entre 1 e 5", () => {
+      cy.request({
+        method: "POST",
+        url: `${urlBase}/users/review`,
+        body: {
+          movieId: filme.id,
+          score: 4,
+          reviewText: faker.lorem.paragraph(),
+        },
+        headers: headers,
+      }).then((response) => {
+        expect(response.status).to.equal(201);
+      });
+    });
 
-    it("Deve retornar erro caso o score seja maior do que 5", () => {});
+    it("Deve retornar mensagem de sucesso caso o score seja igual a 5", () => {
+      cy.request({
+        method: "POST",
+        url: `${urlBase}/users/review`,
+        body: {
+          movieId: filme.id,
+          score: 5,
+          reviewText: faker.lorem.paragraph(),
+        },
+        headers: headers,
+      }).then((response) => {
+        expect(response.status).to.equal(201);
+      });
+    });
+
+    it("Deve retornar erro caso o score seja maior do que 5", () => {
+      cy.request({
+        method: "POST",
+        url: `${urlBase}/users/review`,
+        body: {
+          movieId: new Date().getTime(),
+          score: 6,
+          reviewText: faker.lorem.paragraph(),
+        },
+        headers: headers,
+        failOnStatusCode: false,
+      }).then((response) => {
+        expect(response.body.message).to.equal(
+          "Score should be between 1 and 5"
+        );
+      });
+    });
   });
 
   describe("GET - /api/users/review/all - List reviews", () => {
     it("Deve obter todas as reviews do usuário autenticado", () => {
-      
+      cy.request({
+        method: "GET",
+        url: `${urlBase}/users/review/all`,
+        headers: headers,
+      }).then((response) => {
+        expect(response.status).to.equal(200);
+        expect(Array.isArray(response.body)).to.equal(true);
+        if (response.body.length > 0) {
+          expect(response.body[0]).to.have.property("id");
+          expect(typeof response.body[0].id).to.equal("number");
+          expect(response.body[0]).to.have.property("movieId");
+          expect(typeof response.body[0].movieId).to.equal("number");
+          expect(response.body[0]).to.have.property("movieTitle");
+          expect(typeof response.body[0].movieTitle).to.equal("string");
+          expect(response.body[0]).to.have.property("reviewText");
+          expect(typeof response.body[0].reviewText).to.equal("string");
+          expect(response.body[0]).to.have.property("reviewType");
+          expect(typeof response.body[0].reviewType).to.equal("number");
+          expect(response.body[0]).to.have.property("score");
+          expect(typeof response.body[0].score).to.equal("number");
+        }
+      });
     });
 
-    it("Deve retornar erro caso usuário não esteja autenticado", () => {});
+    it("Deve retornar erro caso usuário não esteja autenticado", () => {
+      cy.request({
+        method: "GET",
+        url: `${urlBase}/users/review/all`,
+        failOnStatusCode: false,
+      }).then((response) => {
+        expect(response.status).to.equal(401);
+      });
+    });
 
-    it("Deve retornar erro caso usuário seja inativo", () => {});
+    it("Deve retornar erro caso usuário seja inativo", () => {
+      let nome = `${faker.person.firstName()} ${faker.person.lastName()}`;
+      let email = faker.internet.email();
+      let password = faker.internet.password({ length: 12 });
+      let headerUsuarioInativo =
+        // Criar usuário
+        cy
+          .request("POST", `${urlBase}/users`, {
+            name: nome,
+            email: email,
+            password: password,
+          })
+          .then((response) => {
+            expect(response.status).to.equal(201);
+            expect(response.body.name).to.equal(nome);
+            expect(response.body.email).to.equal(email);
+            expect(response.body).to.have.property("id");
+            expect(typeof response.body.id).to.equal("number");
+            expect(response.body).to.have.property("name");
+            expect(typeof response.body.name).to.equal("string");
+            expect(response.body).to.have.property("email");
+            expect(typeof response.body.email).to.equal("string");
+            expect(response.body).to.have.property("type");
+            expect(typeof response.body.type).to.equal("number");
+            expect(response.body).to.have.property("active");
+            expect(typeof response.body.active).to.equal("boolean");
+
+            // Fazer login
+            cy.request("POST", `${urlBase}/auth/login`, {
+              email: email,
+              password: password,
+            }).then((response) => {
+              expect(response.status).to.equal(200);
+              expect(response.body).to.have.property("accessToken");
+
+              headerUsuarioInativo = {
+                authorization: `Bearer ${response.body.accessToken}`,
+              };
+
+              // Inativar usuário
+              cy.request({
+                method: "PATCH",
+                url: `${urlBase}/users/inactivate`,
+                body: {},
+                headers: headerUsuarioInativo,
+              }).then((response) => {
+                expect(response.status).to.equal(204);
+
+                // Retornar erro: usuário inativado
+                cy.request({
+                  method: "GET",
+                  url: `${urlBase}/users/review/all`,
+                  headers: headerUsuarioInativo,
+                  failOnStatusCode: false,
+                }).then((response) => {
+                  expect(response.status).to.equal(401);
+                });
+              });
+            });
+          });
+    });
   });
 });
